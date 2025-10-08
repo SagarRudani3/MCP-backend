@@ -118,7 +118,7 @@ export async function handleCallback(req, res) {
     console.log(`[Composio] Full URL: ${req.url}`);
 
     // Composio sends different parameters, always redirect to frontend
-    const frontendRedirect = `${process.env.FRONTEND_URL}/?connected=true`;
+    const frontendRedirect = `${process.env.FRONTEND_URL}/dashboard?connected=true`;
 
     console.log(`[Composio] Redirecting to: ${frontendRedirect}`);
 
