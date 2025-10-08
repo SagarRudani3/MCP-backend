@@ -1,5 +1,5 @@
-import { Composio } from '@composio/core';
-import dotenv from 'dotenv';
+import { Composio } from "@composio/core";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -7,10 +7,9 @@ let composioClient = null;
 
 function getComposioClient() {
   if (!composioClient) {
-    const composio = new Composio({
-      apiKey: process.env.COMPOSIO_API_KEY
+    composioClient = new Composio({
+      apiKey: process.env.COMPOSIO_API_KEY,
     });
-    composioClient = composio.getClient();
   }
   return composioClient;
 }
@@ -20,60 +19,94 @@ export async function getConnectedAccounts(req, res) {
     const { entityId } = req.query;
 
     if (!entityId) {
-      return res.status(400).json({ error: 'entityId is required' });
+      return res.status(400).json({ error: "entityId is required" });
     }
 
-    console.log(`[Composio] Fetching connected accounts for entity: ${entityId}`);
+    console.log(
+      `[Composio] Fetching connected accounts for entity: ${entityId}`
+    );
 
-    const client = getComposioClient();
-    const response = await client.connectedAccounts.list({ entityId });
+    const composio = getComposioClient();
+    const response = await composio.connectedAccounts.list({
+      userId: entityId,
+    });
     const connections = response.items || [];
 
     console.log(`[Composio] Found ${connections.length} connections`);
 
     res.json({ connections });
   } catch (error) {
-    console.error('[Composio] Error fetching connected accounts:', error);
+    console.error("[Composio] Error fetching connected accounts:", error);
     res.status(500).json({
-      error: 'Failed to fetch connected accounts',
-      message: error.message
+      error: "Failed to fetch connected accounts",
+      message: error.message,
     });
   }
 }
 
 export async function initiateConnection(req, res) {
   try {
-    const { appName, entityId, redirectUrl } = req.body;
+    const { appName, entityId, redirectUrl, authConfigId } = req.body;
 
     if (!appName || !entityId) {
       return res.status(400).json({
-        error: 'appName and entityId are required'
+        error: "appName and entityId are required",
       });
     }
 
-    console.log(`[Composio] Initiating connection for app: ${appName}, entity: ${entityId}`);
+    console.log(
+      `[Composio] Initiating connection for app: ${appName}, entity: ${entityId}`
+    );
 
-    const client = getComposioClient();
-    const callbackUrl = redirectUrl || `${process.env.BACKEND_URL}/api/composio/callback`;
+    const composio = getComposioClient();
+    const callbackUrl =
+      redirectUrl || `${process.env.BACKEND_URL}/api/composio/callback`;
 
-    const connection = await client.link.create({
-      appName: appName.toLowerCase(),
+    // Get auth configs for the app to find the auth config ID
+    let configId = authConfigId;
+    if (!configId) {
+      try {
+        const authConfigs = await composio.authConfigs.list({
+          toolkitSlug: appName.toLowerCase(),
+        });
+        if (authConfigs && authConfigs.items && authConfigs.items.length > 0) {
+          configId = authConfigs.items[0].id;
+          console.log(`[Composio] Using auth config ID: ${configId}`);
+        }
+      } catch (err) {
+        console.error("[Composio] Error getting auth configs:", err.message);
+      }
+    }
+
+    if (!configId) {
+      return res.status(400).json({
+        error:
+          "No auth config found for this app. Please create one in the Composio dashboard.",
+        appName,
+      });
+    }
+
+    const connectionRequest = await composio.connectedAccounts.initiate(
       entityId,
-      redirectUrl: callbackUrl
-    });
+      configId,
+      {
+        allowMultiple: true,
+        callbackUrl: callbackUrl,
+      }
+    );
 
     console.log(`[Composio] Connection initiated successfully`);
-    console.log(`[Composio] Redirect URL: ${connection.redirectUrl}`);
+    console.log(`[Composio] Redirect URL: ${connectionRequest.redirectUrl}`);
 
     res.json({
-      redirectUrl: connection.redirectUrl,
-      connectionId: connection.connectionId
+      redirectUrl: connectionRequest.redirectUrl,
+      connectionId: connectionRequest.id,
     });
   } catch (error) {
-    console.error('[Composio] Error initiating connection:', error);
+    console.error("[Composio] Error initiating connection:", error);
     res.status(500).json({
-      error: 'Failed to initiate connection',
-      message: error.message
+      error: "Failed to initiate connection",
+      message: error.message,
     });
   }
 }
@@ -91,33 +124,35 @@ export async function handleCallback(req, res) {
 
     res.redirect(frontendRedirect);
   } catch (error) {
-    console.error('[Composio] Error handling callback:', error);
-    const errorRedirect = `${process.env.FRONTEND_URL}/?error=${encodeURIComponent(error.message)}`;
+    console.error("[Composio] Error handling callback:", error);
+    const errorRedirect = `${
+      process.env.FRONTEND_URL
+    }/?error=${encodeURIComponent(error.message)}`;
     res.redirect(errorRedirect);
   }
 }
 
 export async function getCalendarEvents(req, res) {
   try {
-    const { entityId } = req.query;
+    const { entityId, connectedAccountId } = req.query;
 
     if (!entityId) {
-      return res.status(400).json({ error: 'entityId is required' });
+      return res.status(400).json({ error: "entityId is required" });
     }
 
     console.log(`[Composio] Fetching calendar events for entity: ${entityId}`);
 
-    const client = getComposioClient();
+    const composio = getComposioClient();
 
-    const result = await client.tools.execute({
-      actionName: 'GOOGLECALENDAR_LIST_EVENTS',
-      entityId,
-      params: {
+    const result = await composio.tools.execute("GOOGLECALENDAR_LIST_EVENTS", {
+      userId: entityId,
+      arguments: {
         maxResults: 50,
         timeMin: new Date().toISOString(),
         singleEvents: true,
-        orderBy: 'startTime'
-      }
+        orderBy: "startTime",
+      },
+      ...(connectedAccountId && { connectedAccountId }),
     });
 
     console.log(`[Composio] Retrieved calendar events successfully`);
@@ -126,10 +161,10 @@ export async function getCalendarEvents(req, res) {
 
     res.json({ events });
   } catch (error) {
-    console.error('[Composio] Error fetching calendar events:', error);
+    console.error("[Composio] Error fetching calendar events:", error);
     res.status(500).json({
-      error: 'Failed to fetch calendar events',
-      message: error.message
+      error: "Failed to fetch calendar events",
+      message: error.message,
     });
   }
 }
@@ -140,23 +175,23 @@ export async function disconnectAccount(req, res) {
 
     if (!connectionId) {
       return res.status(400).json({
-        error: 'connectionId is required'
+        error: "connectionId is required",
       });
     }
 
     console.log(`[Composio] Disconnecting connection: ${connectionId}`);
 
-    const client = getComposioClient();
-    await client.connectedAccounts.delete({ connectedAccountId: connectionId });
+    const composio = getComposioClient();
+    await composio.connectedAccounts.delete(connectionId);
 
     console.log(`[Composio] Connection disconnected successfully`);
 
     res.json({ success: true });
   } catch (error) {
-    console.error('[Composio] Error disconnecting account:', error);
+    console.error("[Composio] Error disconnecting account:", error);
     res.status(500).json({
-      error: 'Failed to disconnect account',
-      message: error.message
+      error: "Failed to disconnect account",
+      message: error.message,
     });
   }
 }

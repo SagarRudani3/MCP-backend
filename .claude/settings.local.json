@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)",
+      "Bash(taskkill:*)",
+      "WebFetch(domain:docs.composio.dev)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebSearch",
+      "Bash(npm view:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
