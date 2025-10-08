@@ -1,0 +1,17 @@
+{
+  "name": "composio-google-calendar-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend server for Google Calendar OAuth with Composio",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "@composio/core": "^0.1.54"
+  }
+}
