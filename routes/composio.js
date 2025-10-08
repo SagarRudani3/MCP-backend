@@ -134,7 +134,14 @@ export async function handleCallback(req, res) {
 
 export async function getCalendarEvents(req, res) {
   try {
-    const { entityId, connectedAccountId } = req.query;
+    const {
+      entityId,
+      connectedAccountId,
+      startDate,
+      endDate,
+      maxResults,
+      calendarId,
+    } = req.query;
 
     if (!entityId) {
       return res.status(400).json({ error: "entityId is required" });
@@ -169,36 +176,53 @@ export async function getCalendarEvents(req, res) {
     console.log(`[Composio] Using connection ID: ${googleConnection.id}`);
     console.log(`[Composio] Connection status: ${googleConnection.status}`);
 
-    // Use the tools.execute API with explicit version
-    console.log(
-      "%c Line:174 🥒 composio.tools",
-      "color:#2eafb0",
-      composio.tools
-    );
-    console.log(
-      "%c Line:181 🥤 googleConnection.id",
-      "color:#ffdd4d",
-      googleConnection.id
-    );
+    // Parse and validate date parameters
+    const timeMin = startDate
+      ? new Date(startDate).toISOString()
+      : new Date().toISOString();
+
+    const timeMax = endDate ? new Date(endDate).toISOString() : undefined;
+
+    // Parse maxResults with default of 50, max of 250 (Google Calendar API limit)
+    const resultsLimit = maxResults
+      ? Math.min(parseInt(maxResults, 10), 250)
+      : 50;
+
+    const eventArguments = {
+      calendarId: calendarId || "primary",
+      maxResults: resultsLimit,
+      timeMin: timeMin,
+      singleEvents: true,
+      orderBy: "startTime",
+    };
+
+    // Add timeMax only if provided
+    if (timeMax) {
+      eventArguments.timeMax = timeMax;
+    }
+
+    console.log(`[Composio] Query parameters:`, eventArguments);
+
     const result = await composio.tools.execute("GOOGLECALENDAR_EVENTS_LIST", {
       userId: entityId,
       connectedAccountId: googleConnection.id,
-      arguments: {
-        maxResults: 50,
-        // timeMin: new Date().toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-        calendarId: "primary",
-      },
+      arguments: eventArguments,
     });
 
-    console.log("%c Line:184 🍣 result", "color:#ea7e5c", result);
     console.log(`[Composio] Retrieved calendar events successfully`);
-    console.log(`[Composio] Result:`, JSON.stringify(result, null, 2));
 
     const events = result.data?.items || [];
 
-    res.json({ events });
+    res.json({
+      events,
+      filters: {
+        startDate: timeMin,
+        endDate: timeMax,
+        maxResults: resultsLimit,
+        calendarId: eventArguments.calendarId,
+      },
+      count: events.length,
+    });
   } catch (error) {
     console.error("[Composio] Error fetching calendar events:", error);
     console.error("[Composio] Error details:", error.response?.data || error);
