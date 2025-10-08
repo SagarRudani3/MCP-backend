@@ -10,7 +10,10 @@
       "WebFetch(domain:www.npmjs.com)",
       "WebSearch",
       "Bash(npm view:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

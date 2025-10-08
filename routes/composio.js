@@ -144,27 +144,62 @@ export async function getCalendarEvents(req, res) {
 
     const composio = getComposioClient();
 
-    const result = await composio.tools.execute("GOOGLECALENDAR_LIST_EVENTS", {
+    // Get connected accounts for the entity
+    const connections = await composio.connectedAccounts.list({
       userId: entityId,
+    });
+
+    if (!connections.items || connections.items.length === 0) {
+      return res.status(404).json({
+        error: "No Google Calendar connection found for this user",
+      });
+    }
+
+    // Find Google Calendar connection
+    const googleConnection = connectedAccountId
+      ? connections.items.find((conn) => conn.id === connectedAccountId)
+      : connections.items.find((conn) => conn.toolkitSlug === "googlecalendar");
+
+    if (!googleConnection) {
+      return res.status(404).json({
+        error: "Google Calendar connection not found",
+      });
+    }
+
+    console.log(`[Composio] Using connection ID: ${googleConnection.id}`);
+    console.log(`[Composio] Connection status: ${googleConnection.status}`);
+
+    // Use the tools.execute API with explicit version
+    console.log(
+      "%c Line:174 🥒 composio.tools",
+      "color:#2eafb0",
+      composio.tools
+    );
+    const result = await composio.tools.execute("GOOGLECALENDAR_EVENTS_LIST", {
+      userId: entityId,
+      connectedAccountId: googleConnection.id,
       arguments: {
         maxResults: 50,
         timeMin: new Date().toISOString(),
         singleEvents: true,
         orderBy: "startTime",
+        calendarId: "primary",
       },
-      ...(connectedAccountId && { connectedAccountId }),
     });
 
     console.log(`[Composio] Retrieved calendar events successfully`);
+    console.log(`[Composio] Result:`, JSON.stringify(result, null, 2));
 
-    const events = result.data?.items || result.items || [];
+    const events = result.data?.items || [];
 
     res.json({ events });
   } catch (error) {
     console.error("[Composio] Error fetching calendar events:", error);
+    console.error("[Composio] Error details:", error.response?.data || error);
     res.status(500).json({
       error: "Failed to fetch calendar events",
       message: error.message,
+      details: error.response?.data || error.details,
     });
   }
 }
