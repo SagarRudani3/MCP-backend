@@ -118,7 +118,7 @@ export async function handleCallback(req, res) {
     console.log(`[Composio] Full URL: ${req.url}`);
 
     // Composio sends different parameters, always redirect to frontend
-    const frontendRedirect = `${process.env.FRONTEND_URL}/dashboard?connected=true`;
+    const frontendRedirect = `${process.env.FRONTEND_URL}/?connected=true`;
 
     console.log(`[Composio] Redirecting to: ${frontendRedirect}`);
 
@@ -175,18 +175,24 @@ export async function getCalendarEvents(req, res) {
       "color:#2eafb0",
       composio.tools
     );
+    console.log(
+      "%c Line:181 🥤 googleConnection.id",
+      "color:#ffdd4d",
+      googleConnection.id
+    );
     const result = await composio.tools.execute("GOOGLECALENDAR_EVENTS_LIST", {
       userId: entityId,
       connectedAccountId: googleConnection.id,
       arguments: {
         maxResults: 50,
-        timeMin: new Date().toISOString(),
+        // timeMin: new Date().toISOString(),
         singleEvents: true,
         orderBy: "startTime",
         calendarId: "primary",
       },
     });
 
+    console.log("%c Line:184 🍣 result", "color:#ea7e5c", result);
     console.log(`[Composio] Retrieved calendar events successfully`);
     console.log(`[Composio] Result:`, JSON.stringify(result, null, 2));
 
