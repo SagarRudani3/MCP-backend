@@ -15,10 +15,22 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
 const FRONTEND_URL = process.env.FRONTEND_URL ||"https://meeting-calendar-rho.vercel.app/"|| 'http://localhost:5173';
+const allowedOrigins=[
+  "https://meeting-calendar-rho.vercel.app",
+"https://meeting-calendar-rho.vercel.app/",
+  "http://localhost:5173"
 
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true
+  
+]
+app.use(cors({origin: function (origin, callback) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+   },
+  // origin: FRONTEND_URL,
+  // credentials: true
 }));
 
 app.use(express.json());
