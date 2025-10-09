@@ -191,14 +191,15 @@ export async function getCalendarEvents(req, res) {
     const eventArguments = {
       calendarId: calendarId || "primary",
       maxResults: resultsLimit,
-      timeMin: timeMin,
       singleEvents: true,
       orderBy: "startTime",
     };
 
-    // Add timeMax only if provided
-    if (timeMax) {
-      eventArguments.timeMax = timeMax;
+    if (startDate) {
+      eventArguments.timeMin = new Date(startDate).toISOString();
+    }
+    if (endDate) {
+      eventArguments.timeMax = new Date(endDate).toISOString();
     }
 
     console.log(`[Composio] Query parameters:`, eventArguments);
